@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Image of the Day</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <string name="load_image">Download Image</string>
+    <string name="set_wallpaper">Set as Wallpaper</string>
+    <string name="save_sdcard">Save to SD</string>
+
+</resources>
