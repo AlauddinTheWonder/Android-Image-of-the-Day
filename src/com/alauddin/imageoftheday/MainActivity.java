@@ -13,6 +13,7 @@ import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.TimeZone;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
@@ -53,7 +54,7 @@ public class MainActivity extends ActionBarActivity
 	Bitmap ImageBitmap = null;
 	String TodaysImageName = "";
 	
-	ImageStorage imgStorage;
+	ImageStorage imageStorage;
 	
 	Button loadBtn;
 	Button setWallpaperBtn;
@@ -75,28 +76,28 @@ public class MainActivity extends ActionBarActivity
 		setWallpaperBtn.setEnabled(false);
 		saveSDBtn.setEnabled(false);
 		
+		imageStorage = new ImageStorage();
+		
 		// Generate today's image filename
 		Date date = new Date();
 		SimpleDateFormat dFormat = new SimpleDateFormat("yyyy-MM-dd", new Locale("en"));
+		dFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
 		TodaysImageName = "Wallpaper-" + dFormat.format(date) + ".jpg";
+		
+		// Check if today's image already downloaded
+		Bitmap tImage = imageStorage.getImage(TodaysImageName);
+		if(tImage != null)
+		{
+			processImage(tImage);
+		}
 		
 		if(isConnected()){
 			loadBtn.setEnabled(true);
-			imgStorage = new ImageStorage();
 			
 			loadBtn.setOnClickListener(new View.OnClickListener() {
 				@Override
 				public void onClick(View v) {
-					// Check if today's image already downloaded
-					Bitmap tImage = imgStorage.getImage(TodaysImageName);
-					if(tImage == null)
-					{
-						new HttpAsyncTask().execute(JSonURL);
-					}
-					else
-					{
-						processImage(tImage);
-					}
+					new HttpAsyncTask().execute(JSonURL);
 				}
 			});
 			
@@ -137,14 +138,14 @@ public class MainActivity extends ActionBarActivity
 	
 	public void saveImageToSD(Bitmap image)
 	{
-		Boolean stored = imgStorage.saveToSdCard(image, TodaysImageName);
+		Boolean stored = imageStorage.saveToSdCard(image, TodaysImageName);
 		if(stored)
 		{
-			Toast.makeText(this, "Image saved at: " + imgStorage.filepath, Toast.LENGTH_SHORT).show();
+			Toast.makeText(this, "Image saved at: " + imageStorage.filepath, Toast.LENGTH_SHORT).show();
 		}
 		else
 		{
-			Toast.makeText(this, imgStorage.errorInfo, Toast.LENGTH_SHORT).show();
+			Toast.makeText(this, imageStorage.errorInfo, Toast.LENGTH_SHORT).show();
 		}
 	}
 	
@@ -209,19 +210,18 @@ public class MainActivity extends ActionBarActivity
 	 */
 	private void getImage(JSONObject jsonData)
 	{
-		String imageURL = "";
 		try {
 			JSONArray images = jsonData.getJSONArray("images");
 			JSONObject imageData = images.getJSONObject(0);
-			imageURL = imageData.getString("url");
+			String imageURL = imageData.getString("url");
+			String ImgUrl = Bing + imageURL;
+			
+			// Download and process image
+			new DownloadImageTask().execute(ImgUrl);
 		}
 		catch (JSONException e) {
 			e.printStackTrace();
 		}
-		String ImgUrl = Bing + imageURL;
-		
-		// Download and process image
-		new DownloadImageTask().execute(ImgUrl);
 	}
 	
 	class HttpAsyncTask extends AsyncTask<String, Void, JSONObject>
@@ -253,7 +253,6 @@ public class MainActivity extends ActionBarActivity
 		protected void onPreExecute()
 		{
 			super.onPreExecute();
-			
 			pDialog.setMessage("Downloading Image...");
 		}
 		
@@ -285,7 +284,6 @@ public class MainActivity extends ActionBarActivity
 		{
 			if(image != null){
 				processImage(image);
-				
 				pDialog.dismiss();
 			}
 			else

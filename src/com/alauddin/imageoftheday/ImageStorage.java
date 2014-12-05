@@ -41,10 +41,10 @@ public class ImageStorage
 		if(isExternalStorageWritable())
 		{
 			File file = new File(this.dirPath, filename);
-			if(file.exists()){
+			/*if(file.exists()){
 				this.errorInfo = "Image file already exists at: " + file.getAbsolutePath();
 				return false;
-			}
+			}*/
 			
 			try
 			{
