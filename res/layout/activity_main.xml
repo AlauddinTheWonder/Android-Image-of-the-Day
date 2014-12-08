@@ -8,12 +8,29 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="com.alauddin.imageoftheday.MainActivity" >
     
+    <TextView
+        android:id="@+id/textSetting1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingTop="5dp"
+        android:text="@string/auto_download_text" />
+    
+    <CheckBox
+        android:id="@+id/autoDownload"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignEnd="@+id/load_btn"
+        android:layout_alignRight="@+id/load_btn"
+        android:layout_alignTop="@+id/textSetting1" />
+    
     <Button
         android:id="@+id/load_btn"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:text="@string/load_image" />
+        android:layout_marginTop="20dp"
+        android:text="@string/load_image"
+        android:layout_below="@+id/textSetting1" />
     
     <Button
         android:id="@+id/save_sdcard"

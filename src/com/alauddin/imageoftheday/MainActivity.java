@@ -7,49 +7,37 @@
 
 package com.alauddin.imageoftheday;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
-import java.util.TimeZone;
-
-import org.apache.http.HttpResponse;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.util.EntityUtils;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import android.support.v7.app.ActionBarActivity;
 import android.app.Activity;
 import android.app.ProgressDialog;
-import android.app.WallpaperManager;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
+import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.alauddin.imageoftheday.R;
+import static com.alauddin.imageoftheday.Common.JSonURL;
+import static com.alauddin.imageoftheday.Common.SP_TAG;
 
 public class MainActivity extends ActionBarActivity 
 {
-	final String Bing = "http://www.bing.com";
-	final String JSonURL = Bing + "/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=en-US";
+	Context context;
 	
+	SharedPreferences sp;
 	ProgressDialog pDialog;
 	Bitmap ImageBitmap = null;
 	String TodaysImageName = "";
@@ -61,28 +49,34 @@ public class MainActivity extends ActionBarActivity
 	Button saveSDBtn;
 	TextView tView;
 	ImageView imgView;
+	CheckBox autoDownl;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 		
+		context = this;
+		
+		sp = this.getSharedPreferences(SP_TAG, MODE_PRIVATE); // Initializing shared preference
+		imageStorage = new ImageStorage(); // Initializing ImageStorage class
+		pDialog = new ProgressDialog(this);
+		
+		// Initialzing views
 		tView = (TextView) findViewById(R.id.text_output);
 		loadBtn = (Button) findViewById(R.id.load_btn);
 		setWallpaperBtn = (Button) findViewById(R.id.set_wallpaper);
 		saveSDBtn = (Button) findViewById(R.id.save_sdcard);
 		imgView = (ImageView) findViewById(R.id.img);
+		autoDownl = (CheckBox) findViewById(R.id.autoDownload);
 		
 		setWallpaperBtn.setEnabled(false);
 		saveSDBtn.setEnabled(false);
-		
-		imageStorage = new ImageStorage();
+		autoDownl.setChecked(sp.getBoolean("AUTODOWNLDCHK", true));
+		// Initialzing views ends
 		
 		// Generate today's image filename
-		Date date = new Date();
-		SimpleDateFormat dFormat = new SimpleDateFormat("yyyy-MM-dd", new Locale("en"));
-		dFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-		TodaysImageName = "Wallpaper-" + dFormat.format(date) + ".jpg";
+		TodaysImageName = Common.getImageName();
 		
 		// Check if today's image already downloaded
 		Bitmap tImage = imageStorage.getImage(TodaysImageName);
@@ -91,13 +85,19 @@ public class MainActivity extends ActionBarActivity
 			processImage(tImage);
 		}
 		
+		// Assigning listener for Enable-Disable Auto Download image
+		autoDownl.setOnCheckedChangeListener(new AutoDownloadChk());
+		
 		if(isConnected()){
 			loadBtn.setEnabled(true);
 			
 			loadBtn.setOnClickListener(new View.OnClickListener() {
 				@Override
 				public void onClick(View v) {
-					new HttpAsyncTask().execute(JSonURL);
+					ImageDownloader imgDownloader = new ImageDownloader(MainActivity.this, "processImage", "imageDownloadError");
+					imgDownloader.DownloadBingImageFromJson(JSonURL);
+					pDialog.setMessage("Getting Image from server...");
+					pDialog.show();
 				}
 			});
 			
@@ -134,29 +134,36 @@ public class MainActivity extends ActionBarActivity
 		imgView.setImageBitmap(image);
 		setWallpaperBtn.setEnabled(true);
 		saveSDBtn.setEnabled(true);
+		pDialog.dismiss();
+	}
+	
+	public void imageDownloadError(String str)
+	{
+		Toast.makeText(this, "Download Error: "+str, Toast.LENGTH_LONG).show();
+		pDialog.dismiss();
 	}
 	
 	public void saveImageToSD(Bitmap image)
 	{
-		Boolean stored = imageStorage.saveToSdCard(image, TodaysImageName);
-		if(stored)
+		if(Common.saveImageToSD(image, TodaysImageName))
 		{
-			Toast.makeText(this, "Image saved at: " + imageStorage.filepath, Toast.LENGTH_SHORT).show();
+			Toast.makeText(context, "Image saved", Toast.LENGTH_SHORT).show();
 		}
 		else
 		{
-			Toast.makeText(this, imageStorage.errorInfo, Toast.LENGTH_SHORT).show();
+			Toast.makeText(context, "Error in saving image", Toast.LENGTH_SHORT).show();
 		}
 	}
 	
 	public void setAsWallpaper(Bitmap image)
 	{
-		WallpaperManager wm = WallpaperManager.getInstance(getApplicationContext());
-		try {
-			wm.setBitmap(ImageBitmap);
-			Toast.makeText(MainActivity.this, "Wallpaper Changed", Toast.LENGTH_SHORT).show();
-		} catch (IOException e) {
-			e.printStackTrace();
+		if(Common.setAsWallpaper(context, image))
+		{
+			Toast.makeText(context, "Wallpaper Changed", Toast.LENGTH_SHORT).show();
+		}
+		else
+		{
+			Toast.makeText(context, "Error in changing wallpaper", Toast.LENGTH_SHORT).show();
 		}
 	}
 	
@@ -175,122 +182,33 @@ public class MainActivity extends ActionBarActivity
             return false;
     }
 	
-	/**
-	 * Get json data from server
-	 * @param URL : Required server url
-	 * @return : JSonObject encoded data
-	 */
-	private JSONObject getJsonData(String URL)
-	{
-		String jsonString = "";
-		JSONObject jObject = null;
-		
-		HttpClient httpclient = new DefaultHttpClient();
-		HttpGet request = new HttpGet(URL);
-		
-		try {
-			HttpResponse response = httpclient.execute(request);
-			jsonString = EntityUtils.toString(response.getEntity(), "UTF-8");
-			jObject = new JSONObject(jsonString);
-			
-		} catch (ClientProtocolException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (JSONException e) {
-			e.printStackTrace();
-		}
-		
-		return jObject;
-	}
-	
-	/**
-	 * Split json data and find url from it and then proceed to downloader task
-	 * @param jsonData
-	 */
-	private void getImage(JSONObject jsonData)
-	{
-		try {
-			JSONArray images = jsonData.getJSONArray("images");
-			JSONObject imageData = images.getJSONObject(0);
-			String imageURL = imageData.getString("url");
-			String ImgUrl = Bing + imageURL;
-			
-			// Download and process image
-			new DownloadImageTask().execute(ImgUrl);
-		}
-		catch (JSONException e) {
-			e.printStackTrace();
-		}
-	}
-	
-	class HttpAsyncTask extends AsyncTask<String, Void, JSONObject>
+	class AutoDownloadChk implements OnCheckedChangeListener
 	{
 		@Override
-		protected void onPreExecute()
+		public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) 
 		{
-			super.onPreExecute();
+			ComponentName receiver = new ComponentName(context, NetworkReceiver.class);
+			PackageManager pm = context.getPackageManager();
 			
-			pDialog = new ProgressDialog(MainActivity.this);
-			pDialog.setMessage("Getting Image URL from server...");
-			pDialog.show();
-		}
-		
-		@Override
-		protected JSONObject doInBackground(String... urls) {
-			return getJsonData(urls[0]);
-		}
-		
-		@Override
-		protected void onPostExecute(JSONObject result) {
-			getImage(result);
-		}
-	}
-	
-	class DownloadImageTask extends AsyncTask<String, Integer, Bitmap>
-	{
-		@Override
-		protected void onPreExecute()
-		{
-			super.onPreExecute();
-			pDialog.setMessage("Downloading Image...");
-		}
-		
-		@Override
-		protected Bitmap doInBackground(String... args)
-		{
-			Bitmap bitmap = null;
-			try
+			if(isChecked)
 			{
-				bitmap = BitmapFactory.decodeStream( (InputStream) new URL(args[0]).getContent() );
-				//publishProgress(1); // to call onProgressUpdate();
-			}
-			catch (Exception e)
-			{
-				e.printStackTrace();
-			}
-			return bitmap;
-		}
-		
-		/*@Override
-		protected void onProgressUpdate(Integer... progress)
-		{
-			super.onProgressUpdate(progress);
-			pDialog.setMessage("Downloading Image... " + progress[0] + "%");
-		}*/
-		
-		@Override
-		protected void onPostExecute(Bitmap image)
-		{
-			if(image != null){
-				processImage(image);
-				pDialog.dismiss();
+				pm.setComponentEnabledSetting(receiver,
+				        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+				        PackageManager.DONT_KILL_APP);
+				
+				Toast.makeText(context, "Enabled auto-downloader", Toast.LENGTH_SHORT).show();
 			}
 			else
 			{
-				pDialog.dismiss();
-		        Toast.makeText(MainActivity.this, "Image Does Not exist or Network Error", Toast.LENGTH_SHORT).show();
+				pm.setComponentEnabledSetting(receiver,
+				        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+				        PackageManager.DONT_KILL_APP);
+				
+				Toast.makeText(context, "Disabled auto-downloader", Toast.LENGTH_SHORT).show();
 			}
+			Editor editor = sp.edit();
+			editor.putBoolean("AUTODOWNLDCHK", isChecked);
+			editor.commit();
 		}
 	}
 	
