@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
+    
+    <PreferenceCategory android:title="Background Service Settings" android:key="primary_cat">
+		<CheckBoxPreference
+		   android:key="enableAutoDownload"
+		   android:title="Auto-Download"
+		   android:summary="You can enable/disable service to auto download image and set as wallpaper"
+		   android:defaultValue="true"/>
+		
+	 </PreferenceCategory>
+	 
+	 <PreferenceCategory android:title="General Settings" android:key="secondary_cat">
+		 <ListPreference
+		   android:key="defaultStorage"
+		   android:title="Select Storage"
+		   android:summary="Select storage as Internal or External SDCard to store downloaded image"
+		    />
+	 </PreferenceCategory>
+	 
+</PreferenceScreen>

@@ -4,8 +4,17 @@
     <string name="app_name">Image of the Day</string>
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
+    <string name="action_about">About</string>
     <string name="load_image">Download Image</string>
     <string name="set_wallpaper">Set as Wallpaper</string>
     <string name="save_sdcard">Save to SD</string>
-
+    <string name="browse_dir">Browse</string>
+    <string name="auto_download_text">Check auto download daily image</string>
+	
+    <!-- About texts -->
+    <string name="about_title">Developed by:</string>
+    <string name="developer_name">Alauddin Ansari</string>
+    <string name="about_text">All apps created by me are just for my learning and personal uses purpose. If you found them useful then you can use them, but I will not be responsible for any kind of problem occurred by them.\n\nI have tested all my apps on emulator and my own device. I will never publish any app publicly until I fixed every known bugs.\n\nStill you find any kind of bug or error you can freely let me know about that so that I can fix it in next version. You can mail me at: wonder_a7@yahoo.co.in \n\nThanks and regards</string>
+    
+    
 </resources>

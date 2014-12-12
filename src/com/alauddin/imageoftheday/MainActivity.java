@@ -10,11 +10,8 @@ package com.alauddin.imageoftheday;
 import android.support.v7.app.ActionBarActivity;
 import android.app.Activity;
 import android.app.ProgressDialog;
-import android.content.ComponentName;
 import android.content.Context;
-import android.content.SharedPreferences;
-import android.content.SharedPreferences.Editor;
-import android.content.pm.PackageManager;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -23,33 +20,24 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
-import android.widget.CheckBox;
-import android.widget.CompoundButton;
-import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import static com.alauddin.imageoftheday.Common.JSonURL;
-import static com.alauddin.imageoftheday.Common.SP_TAG;
 
 public class MainActivity extends ActionBarActivity 
 {
 	Context context;
 	
-	SharedPreferences sp;
 	ProgressDialog pDialog;
 	Bitmap ImageBitmap = null;
 	String TodaysImageName = "";
 	
 	ImageStorage imageStorage;
 	
-	Button loadBtn;
-	Button setWallpaperBtn;
-	Button saveSDBtn;
+	Button loadBtn, setWallpaperBtn, saveSDBtn;//, browseBtn;
 	TextView tView;
 	ImageView imgView;
-	CheckBox autoDownl;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -58,8 +46,7 @@ public class MainActivity extends ActionBarActivity
 		
 		context = this;
 		
-		sp = this.getSharedPreferences(SP_TAG, MODE_PRIVATE); // Initializing shared preference
-		imageStorage = new ImageStorage(); // Initializing ImageStorage class
+		imageStorage = new ImageStorage(context); // Initializing ImageStorage class
 		pDialog = new ProgressDialog(this);
 		
 		// Initialzing views
@@ -67,12 +54,12 @@ public class MainActivity extends ActionBarActivity
 		loadBtn = (Button) findViewById(R.id.load_btn);
 		setWallpaperBtn = (Button) findViewById(R.id.set_wallpaper);
 		saveSDBtn = (Button) findViewById(R.id.save_sdcard);
+		//browseBtn = (Button) findViewById(R.id.browse_dir);
 		imgView = (ImageView) findViewById(R.id.img);
-		autoDownl = (CheckBox) findViewById(R.id.autoDownload);
 		
 		setWallpaperBtn.setEnabled(false);
 		saveSDBtn.setEnabled(false);
-		autoDownl.setChecked(sp.getBoolean("AUTODOWNLDCHK", true));
+		//browseBtn.setEnabled(false);
 		// Initialzing views ends
 		
 		// Generate today's image filename
@@ -85,8 +72,6 @@ public class MainActivity extends ActionBarActivity
 			processImage(tImage);
 		}
 		
-		// Assigning listener for Enable-Disable Auto Download image
-		autoDownl.setOnCheckedChangeListener(new AutoDownloadChk());
 		
 		if(isConnected()){
 			loadBtn.setEnabled(true);
@@ -114,13 +99,19 @@ public class MainActivity extends ActionBarActivity
 					setAsWallpaper(ImageBitmap);
 				}
 			});
+			
+			/*browseBtn.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View v) {
+					browseDirectory();
+				}
+			});*/
         }
         else{
         	loadBtn.setEnabled(false);
         	tView.setText("No Internet Connectivity");
         	Toast.makeText(this, "No Internet Connectivity", Toast.LENGTH_LONG).show();
         }
-		
 	}
 	
 	/**
@@ -134,6 +125,7 @@ public class MainActivity extends ActionBarActivity
 		imgView.setImageBitmap(image);
 		setWallpaperBtn.setEnabled(true);
 		saveSDBtn.setEnabled(true);
+		//browseBtn.setEnabled(true);
 		pDialog.dismiss();
 	}
 	
@@ -145,7 +137,7 @@ public class MainActivity extends ActionBarActivity
 	
 	public void saveImageToSD(Bitmap image)
 	{
-		if(Common.saveImageToSD(image, TodaysImageName))
+		if(Common.saveImageToSD(context, image, TodaysImageName))
 		{
 			Toast.makeText(context, "Image saved", Toast.LENGTH_SHORT).show();
 		}
@@ -167,6 +159,23 @@ public class MainActivity extends ActionBarActivity
 		}
 	}
 	
+	/*public void browseDirectory()
+	{
+		String imagePath = imageStorage.filepath;
+		Log.i("IOTD", "IMG: "+imagePath);
+		if(!imagePath.isEmpty())
+		{
+			Uri uri = Uri.parse("file://"+imagePath);
+			Intent i = new Intent(Intent.ACTION_VIEW);
+			i.setDataAndType(uri, "image/*");
+			startActivity(i);
+		}
+		else
+		{
+			Toast.makeText(context, "Image not found!", Toast.LENGTH_LONG).show();
+		}
+	}*/
+	
 	
 	/**
 	 * Check if device is connected to the Internet or not
@@ -182,53 +191,25 @@ public class MainActivity extends ActionBarActivity
             return false;
     }
 	
-	class AutoDownloadChk implements OnCheckedChangeListener
-	{
-		@Override
-		public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) 
-		{
-			ComponentName receiver = new ComponentName(context, NetworkReceiver.class);
-			PackageManager pm = context.getPackageManager();
-			
-			if(isChecked)
-			{
-				pm.setComponentEnabledSetting(receiver,
-				        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-				        PackageManager.DONT_KILL_APP);
-				
-				Toast.makeText(context, "Enabled auto-downloader", Toast.LENGTH_SHORT).show();
-			}
-			else
-			{
-				pm.setComponentEnabledSetting(receiver,
-				        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-				        PackageManager.DONT_KILL_APP);
-				
-				Toast.makeText(context, "Disabled auto-downloader", Toast.LENGTH_SHORT).show();
-			}
-			Editor editor = sp.edit();
-			editor.putBoolean("AUTODOWNLDCHK", isChecked);
-			editor.commit();
-		}
-	}
-	
-	
-	
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
-		// Inflate the menu; this adds items to the action bar if it is present.
 		getMenuInflater().inflate(R.menu.main, menu);
 		return true;
 	}
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
-		// Handle action bar item clicks here. The action bar will
-		// automatically handle clicks on the Home/Up button, so long
-		// as you specify a parent activity in AndroidManifest.xml.
 		int id = item.getItemId();
-		if (id == R.id.action_settings) {
-			return true;
+		switch(id)
+		{
+			case R.id.action_settings:
+				Intent settings = new Intent(this, SettingsPreference.class);
+				startActivity(settings);
+				return true;
+			case R.id.action_about:
+				Intent about = new Intent(this, AboutActivity.class);
+				startActivity(about);
+				return true;
 		}
 		return super.onOptionsItemSelected(item);
 	}

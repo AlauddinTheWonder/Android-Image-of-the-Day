@@ -11,7 +11,6 @@ import android.widget.Toast;
 public class NetworkReceiver extends BroadcastReceiver
 {
 	Context context;
-	ImageStorage imageStorage;
 	String TodaysImageName;
 	
 	@Override
@@ -25,7 +24,7 @@ public class NetworkReceiver extends BroadcastReceiver
         {
         	TodaysImageName = Common.getImageName();
         	
-        	imageStorage = new ImageStorage();
+        	ImageStorage imageStorage = new ImageStorage(context);
         	Bitmap tImage = imageStorage.getImage(TodaysImageName);
     		if(tImage == null)
     		{
@@ -37,7 +36,7 @@ public class NetworkReceiver extends BroadcastReceiver
 	
 	public void successHandler(Bitmap image)
 	{
-		if(Common.saveImageToSD(image, TodaysImageName)){
+		if(Common.saveImageToSD(context, image, TodaysImageName)){
 			if(Common.setAsWallpaper(context, image))
 			{
 				Toast.makeText(context, "Wallpaper: Image of the Day", Toast.LENGTH_LONG).show();
